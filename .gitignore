@@ -1,11 +1,10 @@
 .idea/
 .env
 .DS_Store
-alice
+/alice
 tmp/
 dist/
 *.log
 *.db
 *.db-shm
 *.db-wal
-
