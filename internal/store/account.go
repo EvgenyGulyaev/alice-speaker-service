@@ -18,6 +18,7 @@ type accountRecord struct {
 	ID           string    `json:"id"`
 	Title        string    `json:"title"`
 	Provider     string    `json:"provider"`
+	Transport    string    `json:"transport"`
 	OAuthToken   string    `json:"oauth_token"`
 	IsActive     bool      `json:"is_active"`
 	LastSyncedAt time.Time `json:"last_synced_at"`
@@ -30,6 +31,7 @@ func accountRecordFromModel(account model.Account) accountRecord {
 		ID:           account.ID,
 		Title:        account.Title,
 		Provider:     account.Provider,
+		Transport:    model.NormalizeTransport(account.Transport),
 		OAuthToken:   account.OAuthToken,
 		IsActive:     account.IsActive,
 		LastSyncedAt: account.LastSyncedAt,
@@ -43,6 +45,7 @@ func (record accountRecord) toModel() model.Account {
 		ID:           record.ID,
 		Title:        record.Title,
 		Provider:     record.Provider,
+		Transport:    model.NormalizeTransport(record.Transport),
 		OAuthToken:   record.OAuthToken,
 		IsActive:     record.IsActive,
 		LastSyncedAt: record.LastSyncedAt,
@@ -60,6 +63,7 @@ func (r *AccountRepository) Save(account model.Account) error {
 	if account.Provider == "" {
 		account.Provider = "yandex"
 	}
+	account.Transport = model.NormalizeTransport(account.Transport)
 
 	payload, err := json.Marshal(accountRecordFromModel(account))
 	if err != nil {

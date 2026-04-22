@@ -3,6 +3,7 @@ package routes
 import (
 	"aliceSpeakerService/internal/model"
 	"aliceSpeakerService/internal/store"
+	"aliceSpeakerService/internal/transport"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -19,6 +20,11 @@ type announceScenarioBody struct {
 	ConversationID string `json:"conversation_id"`
 	MessageID      string `json:"message_id"`
 }
+
+var announceTransport = transport.NewManager(
+	transport.NewOfficialScenarioTransport(yandexClient),
+	transport.NewUnofficialTransportStub(),
+)
 
 func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 	var payload announceScenarioBody
@@ -37,7 +43,14 @@ func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 		return
 	}
 
-	result, err := yandexClient.RunScenario(account.OAuthToken, payload.ScenarioID)
+	result, err := announceTransport.Announce(account, transport.Request{
+		AccountID:      payload.AccountID,
+		ScenarioID:     payload.ScenarioID,
+		InitiatorEmail: strings.TrimSpace(payload.InitiatorEmail),
+		RecipientEmail: strings.TrimSpace(payload.RecipientEmail),
+		ConversationID: strings.TrimSpace(payload.ConversationID),
+		MessageID:      strings.TrimSpace(payload.MessageID),
+	})
 	delivery := model.Delivery{
 		ID:             payload.AccountID + ":" + payload.ScenarioID + ":" + time.Now().UTC().Format(time.RFC3339Nano),
 		AccountID:      payload.AccountID,

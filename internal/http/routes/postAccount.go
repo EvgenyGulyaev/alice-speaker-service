@@ -15,6 +15,7 @@ type postAccountBody struct {
 	ID         string `json:"id"`
 	Title      string `json:"title"`
 	OAuthToken string `json:"oauth_token"`
+	Transport  string `json:"transport"`
 	IsActive   bool   `json:"is_active"`
 }
 
@@ -33,6 +34,7 @@ func PostAccount(ctx *silverlining.Context, body []byte) {
 		ID:         strings.TrimSpace(payload.ID),
 		Title:      strings.TrimSpace(payload.Title),
 		Provider:   "yandex",
+		Transport:  model.NormalizeTransport(strings.TrimSpace(payload.Transport)),
 		OAuthToken: strings.TrimSpace(payload.OAuthToken),
 		IsActive:   payload.IsActive,
 		CreatedAt:  time.Now().UTC(),

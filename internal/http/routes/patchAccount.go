@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"aliceSpeakerService/internal/model"
 	"aliceSpeakerService/internal/store"
 	"encoding/json"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 type patchAccountBody struct {
 	Title      *string `json:"title"`
 	OAuthToken *string `json:"oauth_token"`
+	Transport  *string `json:"transport"`
 	IsActive   *bool   `json:"is_active"`
 }
 
@@ -32,6 +34,9 @@ func PatchAccount(ctx *silverlining.Context, accountID string, body []byte) {
 	}
 	if payload.OAuthToken != nil {
 		account.OAuthToken = strings.TrimSpace(*payload.OAuthToken)
+	}
+	if payload.Transport != nil {
+		account.Transport = model.NormalizeTransport(strings.TrimSpace(*payload.Transport))
 	}
 	if payload.IsActive != nil {
 		account.IsActive = *payload.IsActive
