@@ -15,42 +15,45 @@ type AccountRepository struct{}
 func GetAccountRepository() *AccountRepository { return &AccountRepository{} }
 
 type accountRecord struct {
-	ID           string    `json:"id"`
-	Title        string    `json:"title"`
-	Provider     string    `json:"provider"`
-	Transport    string    `json:"transport"`
-	OAuthToken   string    `json:"oauth_token"`
-	IsActive     bool      `json:"is_active"`
-	LastSyncedAt time.Time `json:"last_synced_at"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	Title            string    `json:"title"`
+	Provider         string    `json:"provider"`
+	Transport        string    `json:"transport"`
+	OAuthToken       string    `json:"oauth_token"`
+	UnofficialXToken string    `json:"unofficial_x_token"`
+	IsActive         bool      `json:"is_active"`
+	LastSyncedAt     time.Time `json:"last_synced_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 func accountRecordFromModel(account model.Account) accountRecord {
 	return accountRecord{
-		ID:           account.ID,
-		Title:        account.Title,
-		Provider:     account.Provider,
-		Transport:    model.NormalizeTransport(account.Transport),
-		OAuthToken:   account.OAuthToken,
-		IsActive:     account.IsActive,
-		LastSyncedAt: account.LastSyncedAt,
-		CreatedAt:    account.CreatedAt,
-		UpdatedAt:    account.UpdatedAt,
+		ID:               account.ID,
+		Title:            account.Title,
+		Provider:         account.Provider,
+		Transport:        model.NormalizeTransport(account.Transport),
+		OAuthToken:       account.OAuthToken,
+		UnofficialXToken: account.UnofficialXToken,
+		IsActive:         account.IsActive,
+		LastSyncedAt:     account.LastSyncedAt,
+		CreatedAt:        account.CreatedAt,
+		UpdatedAt:        account.UpdatedAt,
 	}
 }
 
 func (record accountRecord) toModel() model.Account {
 	return model.Account{
-		ID:           record.ID,
-		Title:        record.Title,
-		Provider:     record.Provider,
-		Transport:    model.NormalizeTransport(record.Transport),
-		OAuthToken:   record.OAuthToken,
-		IsActive:     record.IsActive,
-		LastSyncedAt: record.LastSyncedAt,
-		CreatedAt:    record.CreatedAt,
-		UpdatedAt:    record.UpdatedAt,
+		ID:               record.ID,
+		Title:            record.Title,
+		Provider:         record.Provider,
+		Transport:        model.NormalizeTransport(record.Transport),
+		OAuthToken:       record.OAuthToken,
+		UnofficialXToken: record.UnofficialXToken,
+		IsActive:         record.IsActive,
+		LastSyncedAt:     record.LastSyncedAt,
+		CreatedAt:        record.CreatedAt,
+		UpdatedAt:        record.UpdatedAt,
 	}
 }
 

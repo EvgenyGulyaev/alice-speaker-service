@@ -2,19 +2,36 @@ package transport
 
 import (
 	"aliceSpeakerService/internal/model"
+	"aliceSpeakerService/internal/yandex"
 	"errors"
 )
 
-type UnofficialTransportStub struct{}
-
-func NewUnofficialTransportStub() *UnofficialTransportStub {
-	return &UnofficialTransportStub{}
+type UnofficialTransport struct {
+	client *yandex.Client
 }
 
-func (t *UnofficialTransportStub) Name() string {
+func NewUnofficialTransport(client *yandex.Client) *UnofficialTransport {
+	return &UnofficialTransport{client: client}
+}
+
+func (t *UnofficialTransport) Name() string {
 	return model.TransportUnofficial
 }
 
-func (t *UnofficialTransportStub) Announce(account model.Account, request Request) (Result, error) {
-	return Result{}, errors.New("unofficial alice transport is not configured yet")
+func (t *UnofficialTransport) Announce(account model.Account, request Request) (Result, error) {
+	if request.DeviceID == "" {
+		return Result{}, errors.New("device id is required for unofficial Alice transport")
+	}
+	if request.Text == "" {
+		return Result{}, errors.New("text is required for unofficial Alice transport")
+	}
+
+	response, err := t.client.RunCloudTTS(account.UnofficialXToken, request.DeviceID, request.Text)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		Status:    response.Status,
+		RequestID: response.RequestID,
+	}, nil
 }

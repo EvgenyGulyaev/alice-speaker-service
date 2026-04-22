@@ -4,6 +4,7 @@ import "aliceSpeakerService/internal/model"
 
 type Request struct {
 	AccountID      string
+	DeviceID       string
 	ScenarioID     string
 	InitiatorEmail string
 	RecipientEmail string

@@ -12,11 +12,12 @@ import (
 )
 
 type postAccountBody struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	OAuthToken string `json:"oauth_token"`
-	Transport  string `json:"transport"`
-	IsActive   bool   `json:"is_active"`
+	ID               string `json:"id"`
+	Title            string `json:"title"`
+	OAuthToken       string `json:"oauth_token"`
+	UnofficialXToken string `json:"unofficial_x_token"`
+	Transport        string `json:"transport"`
+	IsActive         bool   `json:"is_active"`
 }
 
 func PostAccount(ctx *silverlining.Context, body []byte) {
@@ -31,13 +32,14 @@ func PostAccount(ctx *silverlining.Context, body []byte) {
 	}
 
 	account := model.Account{
-		ID:         strings.TrimSpace(payload.ID),
-		Title:      strings.TrimSpace(payload.Title),
-		Provider:   "yandex",
-		Transport:  model.NormalizeTransport(strings.TrimSpace(payload.Transport)),
-		OAuthToken: strings.TrimSpace(payload.OAuthToken),
-		IsActive:   payload.IsActive,
-		CreatedAt:  time.Now().UTC(),
+		ID:               strings.TrimSpace(payload.ID),
+		Title:            strings.TrimSpace(payload.Title),
+		Provider:         "yandex",
+		Transport:        model.NormalizeTransport(strings.TrimSpace(payload.Transport)),
+		OAuthToken:       strings.TrimSpace(payload.OAuthToken),
+		UnofficialXToken: strings.TrimSpace(payload.UnofficialXToken),
+		IsActive:         payload.IsActive,
+		CreatedAt:        time.Now().UTC(),
 	}
 	if err := store.GetAccountRepository().Save(account); err != nil {
 		GetError(ctx, &Error{Message: err.Error(), Status: http.StatusInternalServerError})

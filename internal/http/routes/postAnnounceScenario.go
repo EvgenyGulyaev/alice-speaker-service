@@ -14,16 +14,18 @@ import (
 
 type announceScenarioBody struct {
 	AccountID      string `json:"account_id"`
+	DeviceID       string `json:"device_id"`
 	ScenarioID     string `json:"scenario_id"`
 	InitiatorEmail string `json:"initiator_email"`
 	RecipientEmail string `json:"recipient_email"`
 	ConversationID string `json:"conversation_id"`
 	MessageID      string `json:"message_id"`
+	Text           string `json:"text"`
 }
 
 var announceTransport = transport.NewManager(
 	transport.NewOfficialScenarioTransport(yandexClient),
-	transport.NewUnofficialTransportStub(),
+	transport.NewUnofficialTransport(yandexClient),
 )
 
 func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
@@ -32,8 +34,8 @@ func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 		GetError(ctx, &Error{Message: err.Error(), Status: http.StatusBadRequest})
 		return
 	}
-	if strings.TrimSpace(payload.AccountID) == "" || strings.TrimSpace(payload.ScenarioID) == "" {
-		GetError(ctx, &Error{Message: "account_id and scenario_id are required", Status: http.StatusBadRequest})
+	if strings.TrimSpace(payload.AccountID) == "" {
+		GetError(ctx, &Error{Message: "account_id is required", Status: http.StatusBadRequest})
 		return
 	}
 
@@ -45,11 +47,13 @@ func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 
 	result, err := announceTransport.Announce(account, transport.Request{
 		AccountID:      payload.AccountID,
+		DeviceID:       strings.TrimSpace(payload.DeviceID),
 		ScenarioID:     payload.ScenarioID,
 		InitiatorEmail: strings.TrimSpace(payload.InitiatorEmail),
 		RecipientEmail: strings.TrimSpace(payload.RecipientEmail),
 		ConversationID: strings.TrimSpace(payload.ConversationID),
 		MessageID:      strings.TrimSpace(payload.MessageID),
+		Text:           strings.TrimSpace(payload.Text),
 	})
 	delivery := model.Delivery{
 		ID:             payload.AccountID + ":" + payload.ScenarioID + ":" + time.Now().UTC().Format(time.RFC3339Nano),

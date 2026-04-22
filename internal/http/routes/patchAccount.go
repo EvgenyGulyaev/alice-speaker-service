@@ -11,10 +11,11 @@ import (
 )
 
 type patchAccountBody struct {
-	Title      *string `json:"title"`
-	OAuthToken *string `json:"oauth_token"`
-	Transport  *string `json:"transport"`
-	IsActive   *bool   `json:"is_active"`
+	Title            *string `json:"title"`
+	OAuthToken       *string `json:"oauth_token"`
+	UnofficialXToken *string `json:"unofficial_x_token"`
+	Transport        *string `json:"transport"`
+	IsActive         *bool   `json:"is_active"`
 }
 
 func PatchAccount(ctx *silverlining.Context, accountID string, body []byte) {
@@ -34,6 +35,9 @@ func PatchAccount(ctx *silverlining.Context, accountID string, body []byte) {
 	}
 	if payload.OAuthToken != nil {
 		account.OAuthToken = strings.TrimSpace(*payload.OAuthToken)
+	}
+	if payload.UnofficialXToken != nil {
+		account.UnofficialXToken = strings.TrimSpace(*payload.UnofficialXToken)
 	}
 	if payload.Transport != nil {
 		account.Transport = model.NormalizeTransport(strings.TrimSpace(*payload.Transport))
