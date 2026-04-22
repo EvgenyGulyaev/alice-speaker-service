@@ -14,6 +14,43 @@ type AccountRepository struct{}
 
 func GetAccountRepository() *AccountRepository { return &AccountRepository{} }
 
+type accountRecord struct {
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	Provider     string    `json:"provider"`
+	OAuthToken   string    `json:"oauth_token"`
+	IsActive     bool      `json:"is_active"`
+	LastSyncedAt time.Time `json:"last_synced_at"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func accountRecordFromModel(account model.Account) accountRecord {
+	return accountRecord{
+		ID:           account.ID,
+		Title:        account.Title,
+		Provider:     account.Provider,
+		OAuthToken:   account.OAuthToken,
+		IsActive:     account.IsActive,
+		LastSyncedAt: account.LastSyncedAt,
+		CreatedAt:    account.CreatedAt,
+		UpdatedAt:    account.UpdatedAt,
+	}
+}
+
+func (record accountRecord) toModel() model.Account {
+	return model.Account{
+		ID:           record.ID,
+		Title:        record.Title,
+		Provider:     record.Provider,
+		OAuthToken:   record.OAuthToken,
+		IsActive:     record.IsActive,
+		LastSyncedAt: record.LastSyncedAt,
+		CreatedAt:    record.CreatedAt,
+		UpdatedAt:    record.UpdatedAt,
+	}
+}
+
 func (r *AccountRepository) Save(account model.Account) error {
 	now := time.Now().UTC()
 	if account.CreatedAt.IsZero() {
@@ -24,7 +61,7 @@ func (r *AccountRepository) Save(account model.Account) error {
 		account.Provider = "yandex"
 	}
 
-	payload, err := json.Marshal(account)
+	payload, err := json.Marshal(accountRecordFromModel(account))
 	if err != nil {
 		return err
 	}
@@ -41,7 +78,12 @@ func (r *AccountRepository) FindByID(id string) (model.Account, error) {
 		if len(raw) == 0 {
 			return errors.New("account not found")
 		}
-		return json.Unmarshal(raw, &account)
+		var record accountRecord
+		if err := json.Unmarshal(raw, &record); err != nil {
+			return err
+		}
+		account = record.toModel()
+		return nil
 	})
 	return account, err
 }
@@ -50,11 +92,11 @@ func (r *AccountRepository) List() ([]model.Account, error) {
 	result := make([]model.Account, 0)
 	err := repository.View(func(tx *bbolt.Tx) error {
 		return tx.Bucket(AccountsBucket).ForEach(func(_, value []byte) error {
-			var account model.Account
-			if err := json.Unmarshal(value, &account); err != nil {
+			var record accountRecord
+			if err := json.Unmarshal(value, &record); err != nil {
 				return err
 			}
-			result = append(result, account)
+			result = append(result, record.toModel())
 			return nil
 		})
 	})
