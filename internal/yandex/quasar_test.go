@@ -55,8 +55,15 @@ func TestUpdateScenarioTTSFallsBackWithoutVoice(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	if err := session.updateScenarioTTS("scenario-1", "device-1", "hello", "oksana"); err != nil {
+	voiceUsed, voiceFallback, err := session.updateScenarioTTS("scenario-1", "device-1", "hello", "oksana")
+	if err != nil {
 		t.Fatalf("expected fallback to succeed, got %v", err)
+	}
+	if voiceUsed != "" {
+		t.Fatalf("expected fallback to clear voice, got %q", voiceUsed)
+	}
+	if !voiceFallback {
+		t.Fatalf("expected fallback flag to be true")
 	}
 
 	if len(bodies) != 2 {

@@ -19,8 +19,10 @@ type Client struct {
 }
 
 type ScenarioActionResult struct {
-	Status    string `json:"status"`
-	RequestID string `json:"request_id"`
+	Status        string `json:"status"`
+	RequestID     string `json:"request_id"`
+	VoiceUsed     string `json:"voice_used,omitempty"`
+	VoiceFallback bool   `json:"voice_fallback,omitempty"`
 }
 
 func NewClient() *Client {

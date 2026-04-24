@@ -31,7 +31,9 @@ func (t *UnofficialTransport) Announce(account model.Account, request Request) (
 		return Result{}, err
 	}
 	return Result{
-		Status:    response.Status,
-		RequestID: response.RequestID,
+		Status:        response.Status,
+		RequestID:     response.RequestID,
+		VoiceUsed:     response.VoiceUsed,
+		VoiceFallback: response.VoiceFallback,
 	}, nil
 }

@@ -81,9 +81,11 @@ func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 		return
 	}
 
-	_ = ctx.WriteJSON(http.StatusOK, map[string]string{
-		"status":      result.Status,
-		"request_id":  result.RequestID,
-		"delivery_id": delivery.ID,
+	_ = ctx.WriteJSON(http.StatusOK, map[string]any{
+		"status":         result.Status,
+		"request_id":     result.RequestID,
+		"delivery_id":    delivery.ID,
+		"voice_used":     result.VoiceUsed,
+		"voice_fallback": result.VoiceFallback,
 	})
 }

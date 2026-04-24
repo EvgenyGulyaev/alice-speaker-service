@@ -69,10 +69,17 @@ func (c *Client) RunCloudTTS(xToken, deviceID, text, voice string) (ScenarioActi
 	if err != nil {
 		return ScenarioActionResult{}, err
 	}
-	if err := session.updateScenarioTTS(scenarioID, deviceID, text, voice); err != nil {
+	voiceUsed, voiceFallback, err := session.updateScenarioTTS(scenarioID, deviceID, text, voice)
+	if err != nil {
 		return ScenarioActionResult{}, err
 	}
-	return session.runScenarioAction(scenarioID)
+	result, err := session.runScenarioAction(scenarioID)
+	if err != nil {
+		return ScenarioActionResult{}, err
+	}
+	result.VoiceUsed = voiceUsed
+	result.VoiceFallback = voiceFallback
+	return result, nil
 }
 
 func newQuasarSession(timeout time.Duration) (*quasarSession, error) {
@@ -211,17 +218,20 @@ func (s *quasarSession) createScenario(deviceID string) (string, error) {
 	return payload.ScenarioID, nil
 }
 
-func (s *quasarSession) updateScenarioTTS(scenarioID, deviceID, text, voice string) error {
+func (s *quasarSession) updateScenarioTTS(scenarioID, deviceID, text, voice string) (string, bool, error) {
 	err := s.updateScenarioTTSRequest(scenarioID, deviceID, text, voice)
-	if err == nil || strings.TrimSpace(voice) == "" {
-		return err
+	if err == nil {
+		return strings.TrimSpace(voice), false, nil
+	}
+	if strings.TrimSpace(voice) == "" {
+		return "", false, err
 	}
 
 	fallbackErr := s.updateScenarioTTSRequest(scenarioID, deviceID, text, "")
 	if fallbackErr != nil {
-		return fmt.Errorf("failed to update Yandex TTS scenario with voice: %w; fallback without voice failed: %v", err, fallbackErr)
+		return "", false, fmt.Errorf("failed to update Yandex TTS scenario with voice: %w; fallback without voice failed: %v", err, fallbackErr)
 	}
-	return nil
+	return "", true, nil
 }
 
 func (s *quasarSession) updateScenarioTTSRequest(scenarioID, deviceID, text, voice string) error {

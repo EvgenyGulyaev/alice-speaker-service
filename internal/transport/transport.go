@@ -16,8 +16,10 @@ type Request struct {
 }
 
 type Result struct {
-	Status    string
-	RequestID string
+	Status        string
+	RequestID     string
+	VoiceUsed     string
+	VoiceFallback bool
 }
 
 type SpeakerTransport interface {
