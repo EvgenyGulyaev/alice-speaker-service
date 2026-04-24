@@ -21,6 +21,10 @@ func resourceKey(accountID, entityID string) []byte {
 
 func (r *ResourceRepository) ReplaceResources(accountID string, resources model.Resources) error {
 	now := time.Now().UTC()
+	for i := range resources.Households {
+		resources.Households[i].AccountID = accountID
+		resources.Households[i].UpdatedAt = now
+	}
 	for i := range resources.Rooms {
 		resources.Rooms[i].AccountID = accountID
 		resources.Rooms[i].UpdatedAt = now
@@ -35,6 +39,9 @@ func (r *ResourceRepository) ReplaceResources(accountID string, resources model.
 	}
 
 	return repository.Update(func(tx *bbolt.Tx) error {
+		if err := clearAccountBucketItems(tx.Bucket(HouseholdsBucket), accountID); err != nil {
+			return err
+		}
 		if err := clearAccountBucketItems(tx.Bucket(RoomsBucket), accountID); err != nil {
 			return err
 		}
@@ -45,6 +52,15 @@ func (r *ResourceRepository) ReplaceResources(accountID string, resources model.
 			return err
 		}
 
+		for _, household := range resources.Households {
+			payload, err := json.Marshal(household)
+			if err != nil {
+				return err
+			}
+			if err := tx.Bucket(HouseholdsBucket).Put(resourceKey(accountID, household.ID), payload); err != nil {
+				return err
+			}
+		}
 		for _, room := range resources.Rooms {
 			payload, err := json.Marshal(room)
 			if err != nil {
@@ -98,12 +114,25 @@ func clearAccountBucketItems(bucket *bbolt.Bucket, accountID string) error {
 
 func (r *ResourceRepository) GetResources(accountID string) (model.Resources, error) {
 	result := model.Resources{
-		Rooms:     make([]model.Room, 0),
-		Devices:   make([]model.Device, 0),
-		Scenarios: make([]model.Scenario, 0),
+		Households: make([]model.Household, 0),
+		Rooms:      make([]model.Room, 0),
+		Devices:    make([]model.Device, 0),
+		Scenarios:  make([]model.Scenario, 0),
 	}
 
 	err := repository.View(func(tx *bbolt.Tx) error {
+		if err := tx.Bucket(HouseholdsBucket).ForEach(func(_, value []byte) error {
+			var household model.Household
+			if err := json.Unmarshal(value, &household); err != nil {
+				return err
+			}
+			if household.AccountID == accountID {
+				result.Households = append(result.Households, household)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
 		if err := tx.Bucket(RoomsBucket).ForEach(func(_, value []byte) error {
 			var room model.Room
 			if err := json.Unmarshal(value, &room); err != nil {
@@ -140,6 +169,7 @@ func (r *ResourceRepository) GetResources(accountID string) (model.Resources, er
 		})
 	})
 
+	sort.Slice(result.Households, func(i, j int) bool { return result.Households[i].Name < result.Households[j].Name })
 	sort.Slice(result.Rooms, func(i, j int) bool { return result.Rooms[i].Name < result.Rooms[j].Name })
 	sort.Slice(result.Devices, func(i, j int) bool { return result.Devices[i].Name < result.Devices[j].Name })
 	sort.Slice(result.Scenarios, func(i, j int) bool { return result.Scenarios[i].Name < result.Scenarios[j].Name })

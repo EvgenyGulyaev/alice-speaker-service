@@ -53,11 +53,18 @@ func (c *Client) LoadResources(token string) (model.Resources, error) {
 	}
 
 	result := model.Resources{
-		Rooms:     make([]model.Room, 0, len(payload.Rooms)),
-		Devices:   make([]model.Device, 0, len(payload.Devices)),
-		Scenarios: make([]model.Scenario, 0, len(payload.Scenarios)),
+		Households: make([]model.Household, 0, len(payload.Households)),
+		Rooms:      make([]model.Room, 0, len(payload.Rooms)),
+		Devices:    make([]model.Device, 0, len(payload.Devices)),
+		Scenarios:  make([]model.Scenario, 0, len(payload.Scenarios)),
 	}
 
+	for _, household := range payload.Households {
+		result.Households = append(result.Households, model.Household{
+			ID:   household.HouseholdID,
+			Name: household.Name,
+		})
+	}
 	for _, room := range payload.Rooms {
 		result.Rooms = append(result.Rooms, model.Room{
 			ID:          room.ID,

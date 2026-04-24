@@ -2,6 +2,13 @@ package model
 
 import "time"
 
+type Household struct {
+	ID        string    `json:"id"`
+	AccountID string    `json:"account_id"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Room struct {
 	ID          string    `json:"id"`
 	AccountID   string    `json:"account_id"`
@@ -31,7 +38,8 @@ type Scenario struct {
 }
 
 type Resources struct {
-	Rooms     []Room     `json:"rooms"`
-	Devices   []Device   `json:"devices"`
-	Scenarios []Scenario `json:"scenarios"`
+	Households []Household `json:"households"`
+	Rooms      []Room      `json:"rooms"`
+	Devices    []Device    `json:"devices"`
+	Scenarios  []Scenario  `json:"scenarios"`
 }

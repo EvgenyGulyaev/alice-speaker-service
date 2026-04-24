@@ -6,6 +6,7 @@ import (
 
 var (
 	AccountsBucket   = []byte("Accounts")
+	HouseholdsBucket = []byte("Households")
 	RoomsBucket      = []byte("Rooms")
 	DevicesBucket    = []byte("Devices")
 	ScenariosBucket  = []byte("Scenarios")
@@ -18,6 +19,7 @@ func InitStore(repo *db.Repository) error {
 	repository = repo
 	return repo.EnsureBuckets([][]byte{
 		AccountsBucket,
+		HouseholdsBucket,
 		RoomsBucket,
 		DevicesBucket,
 		ScenariosBucket,

@@ -1,11 +1,17 @@
 package yandex
 
 type userInfoResponse struct {
-	Status    string             `json:"status"`
-	RequestID string             `json:"request_id"`
-	Rooms     []userInfoRoom     `json:"rooms"`
-	Devices   []userInfoDevice   `json:"devices"`
-	Scenarios []userInfoScenario `json:"scenarios"`
+	Status     string              `json:"status"`
+	RequestID  string              `json:"request_id"`
+	Households []userInfoHousehold `json:"households"`
+	Rooms      []userInfoRoom      `json:"rooms"`
+	Devices    []userInfoDevice    `json:"devices"`
+	Scenarios  []userInfoScenario  `json:"scenarios"`
+}
+
+type userInfoHousehold struct {
+	HouseholdID string `json:"household_id"`
+	Name        string `json:"name"`
 }
 
 type userInfoRoom struct {
