@@ -26,6 +26,9 @@ var quasarCSRFRegexp = regexp.MustCompile(`"csrfToken2":"(.+?)"`)
 type quasarSession struct {
 	httpClient *http.Client
 	csrfToken  string
+	baseURL    string
+	authURL    string
+	pageURL    string
 }
 
 type quasarStatusResponse struct {
@@ -43,7 +46,7 @@ type quasarScenario struct {
 	Name string `json:"name"`
 }
 
-func (c *Client) RunCloudTTS(xToken, deviceID, text string) (ScenarioActionResult, error) {
+func (c *Client) RunCloudTTS(xToken, deviceID, text, voice string) (ScenarioActionResult, error) {
 	if strings.TrimSpace(xToken) == "" {
 		return ScenarioActionResult{}, errors.New("unofficial x_token is required")
 	}
@@ -66,7 +69,7 @@ func (c *Client) RunCloudTTS(xToken, deviceID, text string) (ScenarioActionResul
 	if err != nil {
 		return ScenarioActionResult{}, err
 	}
-	if err := session.updateScenarioTTS(scenarioID, deviceID, text); err != nil {
+	if err := session.updateScenarioTTS(scenarioID, deviceID, text, voice); err != nil {
 		return ScenarioActionResult{}, err
 	}
 	return session.runScenarioAction(scenarioID)
@@ -85,6 +88,9 @@ func newQuasarSession(timeout time.Duration) (*quasarSession, error) {
 				return http.ErrUseLastResponse
 			},
 		},
+		baseURL: quasarBaseURL,
+		authURL: quasarAuthURL,
+		pageURL: quasarPageURL,
 	}, nil
 }
 
@@ -94,7 +100,7 @@ func (s *quasarSession) loginWithXToken(xToken string) error {
 		"retpath": {"https://www.yandex.ru"},
 	}
 
-	request, err := http.NewRequest(http.MethodPost, quasarAuthURL, strings.NewReader(form.Encode()))
+	request, err := http.NewRequest(http.MethodPost, s.authURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
 	}
@@ -137,7 +143,7 @@ func (s *quasarSession) loginWithXToken(xToken string) error {
 }
 
 func (s *quasarSession) loadCSRFToken() error {
-	request, err := http.NewRequest(http.MethodGet, quasarPageURL, nil)
+	request, err := http.NewRequest(http.MethodGet, s.pageURL, nil)
 	if err != nil {
 		return err
 	}
@@ -177,7 +183,7 @@ func (s *quasarSession) ensureScenario(deviceID string) (string, error) {
 
 func (s *quasarSession) listScenarios() ([]quasarScenario, error) {
 	var payload quasarStatusResponse
-	if err := s.doJSON(http.MethodGet, quasarBaseURL+"/m/user/scenarios", nil, &payload); err != nil {
+	if err := s.doJSON(http.MethodGet, s.baseURL+"/m/user/scenarios", nil, &payload); err != nil {
 		return nil, err
 	}
 	if payload.Status != "ok" {
@@ -190,10 +196,10 @@ func (s *quasarSession) listScenarios() ([]quasarScenario, error) {
 }
 
 func (s *quasarSession) createScenario(deviceID string) (string, error) {
-	body := scenarioSpeakerTTS(quasarScenarioName(deviceID), encodeScenarioTrigger(deviceID), deviceID, "пустышка")
+	body := scenarioSpeakerTTS(quasarScenarioName(deviceID), encodeScenarioTrigger(deviceID), deviceID, "пустышка", "")
 
 	var payload quasarStatusResponse
-	if err := s.doJSON(http.MethodPost, quasarBaseURL+"/m/v4/user/scenarios", body, &payload); err != nil {
+	if err := s.doJSON(http.MethodPost, s.baseURL+"/m/v4/user/scenarios", body, &payload); err != nil {
 		return "", err
 	}
 	if payload.Status != "ok" || payload.ScenarioID == "" {
@@ -205,10 +211,23 @@ func (s *quasarSession) createScenario(deviceID string) (string, error) {
 	return payload.ScenarioID, nil
 }
 
-func (s *quasarSession) updateScenarioTTS(scenarioID, deviceID, text string) error {
-	body := scenarioSpeakerTTS(quasarScenarioName(deviceID), encodeScenarioTrigger(deviceID), deviceID, text)
+func (s *quasarSession) updateScenarioTTS(scenarioID, deviceID, text, voice string) error {
+	err := s.updateScenarioTTSRequest(scenarioID, deviceID, text, voice)
+	if err == nil || strings.TrimSpace(voice) == "" {
+		return err
+	}
+
+	fallbackErr := s.updateScenarioTTSRequest(scenarioID, deviceID, text, "")
+	if fallbackErr != nil {
+		return fmt.Errorf("failed to update Yandex TTS scenario with voice: %w; fallback without voice failed: %v", err, fallbackErr)
+	}
+	return nil
+}
+
+func (s *quasarSession) updateScenarioTTSRequest(scenarioID, deviceID, text, voice string) error {
+	body := scenarioSpeakerTTS(quasarScenarioName(deviceID), encodeScenarioTrigger(deviceID), deviceID, text, voice)
 	var payload quasarStatusResponse
-	if err := s.doJSON(http.MethodPut, quasarBaseURL+"/m/v4/user/scenarios/"+scenarioID, body, &payload); err != nil {
+	if err := s.doJSON(http.MethodPut, s.baseURL+"/m/v4/user/scenarios/"+scenarioID, body, &payload); err != nil {
 		return err
 	}
 	if payload.Status != "ok" {
@@ -222,7 +241,7 @@ func (s *quasarSession) updateScenarioTTS(scenarioID, deviceID, text string) err
 
 func (s *quasarSession) runScenarioAction(scenarioID string) (ScenarioActionResult, error) {
 	var payload quasarStatusResponse
-	if err := s.doJSON(http.MethodPost, quasarBaseURL+"/m/user/scenarios/"+scenarioID+"/actions", map[string]any{}, &payload); err != nil {
+	if err := s.doJSON(http.MethodPost, s.baseURL+"/m/user/scenarios/"+scenarioID+"/actions", map[string]any{}, &payload); err != nil {
 		return ScenarioActionResult{}, err
 	}
 	if payload.Status != "ok" {
@@ -283,7 +302,14 @@ func (s *quasarSession) doJSON(method, requestURL string, body any, target any) 
 	return nil
 }
 
-func scenarioSpeakerTTS(name, trigger, deviceID, text string) map[string]any {
+func scenarioSpeakerTTS(name, trigger, deviceID, text, voice string) map[string]any {
+	ttsValue := map[string]any{
+		"text": text,
+	}
+	if strings.TrimSpace(voice) != "" {
+		ttsValue["voice"] = strings.TrimSpace(voice)
+	}
+
 	return map[string]any{
 		"name": name,
 		"icon": "home",
@@ -311,9 +337,7 @@ func scenarioSpeakerTTS(name, trigger, deviceID, text string) map[string]any {
 										"type": "devices.capabilities.quasar",
 										"state": map[string]any{
 											"instance": "tts",
-											"value": map[string]any{
-												"text": text,
-											},
+											"value":    ttsValue,
 										},
 									},
 								},

@@ -21,6 +21,7 @@ type announceScenarioBody struct {
 	ConversationID string `json:"conversation_id"`
 	MessageID      string `json:"message_id"`
 	Text           string `json:"text"`
+	Voice          string `json:"voice"`
 }
 
 var announceTransport = transport.NewManager(
@@ -54,6 +55,7 @@ func PostAnnounceScenario(ctx *silverlining.Context, body []byte) {
 		ConversationID: strings.TrimSpace(payload.ConversationID),
 		MessageID:      strings.TrimSpace(payload.MessageID),
 		Text:           strings.TrimSpace(payload.Text),
+		Voice:          strings.TrimSpace(payload.Voice),
 	})
 	delivery := model.Delivery{
 		ID:             payload.AccountID + ":" + payload.ScenarioID + ":" + time.Now().UTC().Format(time.RFC3339Nano),

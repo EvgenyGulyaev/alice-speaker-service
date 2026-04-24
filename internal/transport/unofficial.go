@@ -26,7 +26,7 @@ func (t *UnofficialTransport) Announce(account model.Account, request Request) (
 		return Result{}, errors.New("text is required for unofficial Alice transport")
 	}
 
-	response, err := t.client.RunCloudTTS(account.UnofficialXToken, request.DeviceID, request.Text)
+	response, err := t.client.RunCloudTTS(account.UnofficialXToken, request.DeviceID, request.Text, request.Voice)
 	if err != nil {
 		return Result{}, err
 	}

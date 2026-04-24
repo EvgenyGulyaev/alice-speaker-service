@@ -11,6 +11,7 @@ type Request struct {
 	ConversationID string
 	MessageID      string
 	Text           string
+	Voice          string
 	AudioURL       string
 }
 
