@@ -10,10 +10,14 @@ import (
 
 func defaultAliceVoices() []model.VoiceOption {
 	return []model.VoiceOption{
+		{Value: "omazh", Label: "Omazh"},
+		{Value: "dasha", Label: "Dasha"},
 		{Value: "jane", Label: "Jane"},
-		{Value: "oksana", Label: "Oksana"},
+		{Value: "alena", Label: "Alena"},
+		{Value: "julia", Label: "Julia"},
 		{Value: "zahar", Label: "Zahar"},
 		{Value: "ermil", Label: "Ermil"},
+		{Value: "filipp", Label: "Filipp"},
 	}
 }
 
