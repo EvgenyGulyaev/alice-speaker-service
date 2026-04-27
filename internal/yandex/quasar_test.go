@@ -122,7 +122,7 @@ func TestDeleteScenarioUsesDeleteEndpoint(t *testing.T) {
 	if err := session.deleteScenario("scenario-42"); err != nil {
 		t.Fatalf("deleteScenario: %v", err)
 	}
-	if len(methods) != 1 || methods[0] != "DELETE /m/v4/user/scenarios/scenario-42" {
+	if len(methods) != 1 || methods[0] != "DELETE /m/user/scenarios/scenario-42" {
 		t.Fatalf("unexpected delete calls: %#v", methods)
 	}
 }
@@ -134,7 +134,7 @@ func TestCleanupScenariosDeletesAllCodexScenarios(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/m/user/scenarios":
 			_, _ = w.Write([]byte(`{"status":"ok","scenarios":[{"id":"codex-a","name":"Codex speaker-a"},{"id":"foreign","name":"Morning lights"},{"id":"codex-b","name":"Codex speaker-b"}]}`))
-		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/v4/user/scenarios/"):
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/user/scenarios/"):
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -157,8 +157,8 @@ func TestCleanupScenariosDeletesAllCodexScenarios(t *testing.T) {
 	}
 
 	expected := []string{
-		"DELETE /m/v4/user/scenarios/codex-a",
-		"DELETE /m/v4/user/scenarios/codex-b",
+		"DELETE /m/user/scenarios/codex-a",
+		"DELETE /m/user/scenarios/codex-b",
 	}
 	actualDeletes := make([]string, 0)
 	for _, method := range methods {
@@ -180,7 +180,7 @@ func TestCleanupScenariosDeletesOnlyMatchingDeviceScenario(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/m/user/scenarios":
 			_, _ = w.Write([]byte(`{"status":"ok","scenarios":[{"id":"codex-a","name":"Codex speaker-a"},{"id":"codex-b","name":"Codex speaker-b"},{"id":"foreign","name":"Morning lights"}]}`))
-		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/v4/user/scenarios/"):
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/user/scenarios/"):
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -208,7 +208,7 @@ func TestCleanupScenariosDeletesOnlyMatchingDeviceScenario(t *testing.T) {
 			actualDeletes = append(actualDeletes, method)
 		}
 	}
-	if len(actualDeletes) != 1 || actualDeletes[0] != "DELETE /m/v4/user/scenarios/codex-b" {
+	if len(actualDeletes) != 1 || actualDeletes[0] != "DELETE /m/user/scenarios/codex-b" {
 		t.Fatalf("unexpected delete calls: %#v", actualDeletes)
 	}
 }

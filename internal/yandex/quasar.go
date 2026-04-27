@@ -313,7 +313,7 @@ func (s *quasarSession) deleteScenario(scenarioID string) error {
 		return nil
 	}
 
-	return s.doJSON(http.MethodDelete, s.baseURL+"/m/v4/user/scenarios/"+scenarioID, nil, nil)
+	return s.doJSON(http.MethodDelete, s.baseURL+"/m/user/scenarios/"+scenarioID, nil, nil)
 }
 
 func (s *quasarSession) deleteScenarios(scenarioIDs []string) {
