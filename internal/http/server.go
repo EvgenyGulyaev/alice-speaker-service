@@ -88,6 +88,12 @@ func handlePost(ctx *silverlining.Context, path string) {
 			})(ctx)
 			return
 		}
+		if parts := apiPathParts(path); len(parts) == 4 && parts[0] == "api" && parts[1] == "accounts" && parts[3] == "cleanup-scenarios" {
+			middleware.RequireServiceToken(func(c *silverlining.Context) {
+				routes.PostAccountCleanupScenarios(c, parts[2], body)
+			})(ctx)
+			return
+		}
 		routes.NotFound(ctx)
 	}
 }

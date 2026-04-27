@@ -98,6 +98,22 @@ func (c *Client) RunCloudTTS(xToken, deviceID, text, voice string) (ScenarioActi
 	return result, nil
 }
 
+func (c *Client) CleanupCloudTTSScenarios(xToken, deviceID string) (int, error) {
+	if strings.TrimSpace(xToken) == "" {
+		return 0, errors.New("unofficial x_token is required")
+	}
+
+	session, err := newQuasarSession(c.httpClient.Timeout)
+	if err != nil {
+		return 0, err
+	}
+	if err := session.loginWithXToken(strings.TrimSpace(xToken)); err != nil {
+		return 0, err
+	}
+
+	return session.cleanupScenarios(deviceID)
+}
+
 func newQuasarSession(timeout time.Duration) (*quasarSession, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -306,6 +322,34 @@ func (s *quasarSession) deleteScenarios(scenarioIDs []string) {
 			continue
 		}
 	}
+}
+
+func (s *quasarSession) cleanupScenarios(deviceID string) (int, error) {
+	scenarios, err := s.listScenarios()
+	if err != nil {
+		return 0, err
+	}
+
+	targetName := ""
+	if strings.TrimSpace(deviceID) != "" {
+		targetName = quasarScenarioName(deviceID)
+	}
+
+	deleted := 0
+	for _, scenario := range scenarios {
+		if !strings.HasPrefix(strings.TrimSpace(scenario.Name), quasarScenarioNamePrefix) {
+			continue
+		}
+		if targetName != "" && strings.TrimSpace(scenario.Name) != targetName {
+			continue
+		}
+		if err := s.deleteScenario(scenario.ID); err != nil {
+			return deleted, err
+		}
+		deleted++
+	}
+
+	return deleted, nil
 }
 
 func (s *quasarSession) doJSON(method, requestURL string, body any, target any) error {

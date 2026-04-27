@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -123,5 +124,91 @@ func TestDeleteScenarioUsesDeleteEndpoint(t *testing.T) {
 	}
 	if len(methods) != 1 || methods[0] != "DELETE /m/v4/user/scenarios/scenario-42" {
 		t.Fatalf("unexpected delete calls: %#v", methods)
+	}
+}
+
+func TestCleanupScenariosDeletesAllCodexScenarios(t *testing.T) {
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/m/user/scenarios":
+			_, _ = w.Write([]byte(`{"status":"ok","scenarios":[{"id":"codex-a","name":"Codex speaker-a"},{"id":"foreign","name":"Morning lights"},{"id":"codex-b","name":"Codex speaker-b"}]}`))
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/v4/user/scenarios/"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	session := &quasarSession{
+		httpClient: server.Client(),
+		csrfToken:  "csrf",
+		baseURL:    server.URL,
+	}
+
+	deleted, err := session.cleanupScenarios("")
+	if err != nil {
+		t.Fatalf("cleanupScenarios: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("expected 2 deleted scenarios, got %d", deleted)
+	}
+
+	expected := []string{
+		"DELETE /m/v4/user/scenarios/codex-a",
+		"DELETE /m/v4/user/scenarios/codex-b",
+	}
+	actualDeletes := make([]string, 0)
+	for _, method := range methods {
+		if strings.HasPrefix(method, "DELETE ") {
+			actualDeletes = append(actualDeletes, method)
+		}
+	}
+	slices.Sort(expected)
+	slices.Sort(actualDeletes)
+	if !slices.Equal(expected, actualDeletes) {
+		t.Fatalf("unexpected delete calls: %#v", actualDeletes)
+	}
+}
+
+func TestCleanupScenariosDeletesOnlyMatchingDeviceScenario(t *testing.T) {
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/m/user/scenarios":
+			_, _ = w.Write([]byte(`{"status":"ok","scenarios":[{"id":"codex-a","name":"Codex speaker-a"},{"id":"codex-b","name":"Codex speaker-b"},{"id":"foreign","name":"Morning lights"}]}`))
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/m/v4/user/scenarios/"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	session := &quasarSession{
+		httpClient: server.Client(),
+		csrfToken:  "csrf",
+		baseURL:    server.URL,
+	}
+
+	deleted, err := session.cleanupScenarios("speaker-b")
+	if err != nil {
+		t.Fatalf("cleanupScenarios: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected 1 deleted scenario, got %d", deleted)
+	}
+
+	actualDeletes := make([]string, 0)
+	for _, method := range methods {
+		if strings.HasPrefix(method, "DELETE ") {
+			actualDeletes = append(actualDeletes, method)
+		}
+	}
+	if len(actualDeletes) != 1 || actualDeletes[0] != "DELETE /m/v4/user/scenarios/codex-b" {
+		t.Fatalf("unexpected delete calls: %#v", actualDeletes)
 	}
 }
