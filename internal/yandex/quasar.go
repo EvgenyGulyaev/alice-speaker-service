@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,9 +20,11 @@ const (
 	quasarAuthURL            = "https://mobileproxy.passport.yandex.net/1/bundle/auth/x_token/"
 	quasarPageURL            = "https://yandex.ru/quasar"
 	quasarScenarioNamePrefix = "Codex "
+	quasarScenarioTTL        = 5 * time.Minute
 )
 
 var quasarCSRFRegexp = regexp.MustCompile(`"csrfToken2":"(.+?)"`)
+var quasarScenarioDeletionScheduler = newScenarioDeletionScheduler()
 
 type quasarSession struct {
 	httpClient *http.Client
@@ -65,7 +68,7 @@ func (c *Client) RunCloudTTS(xToken, deviceID, text, voice string) (ScenarioActi
 		return ScenarioActionResult{}, err
 	}
 
-	scenarioID, err := session.ensureScenario(deviceID)
+	scenarioID, staleScenarioIDs, err := session.ensureScenario(deviceID)
 	if err != nil {
 		return ScenarioActionResult{}, err
 	}
@@ -77,6 +80,19 @@ func (c *Client) RunCloudTTS(xToken, deviceID, text, voice string) (ScenarioActi
 	if err != nil {
 		return ScenarioActionResult{}, err
 	}
+	session.deleteScenarios(staleScenarioIDs)
+	quasarScenarioDeletionScheduler.schedule(strings.TrimSpace(xToken), strings.TrimSpace(deviceID), scenarioID, func() {
+		cleanupSession, cleanupErr := newQuasarSession(c.httpClient.Timeout)
+		if cleanupErr != nil {
+			return
+		}
+		if err := cleanupSession.loginWithXToken(strings.TrimSpace(xToken)); err != nil {
+			return
+		}
+		if err := cleanupSession.deleteScenario(scenarioID); err != nil {
+			return
+		}
+	})
 	result.VoiceUsed = voiceUsed
 	result.VoiceFallback = voiceFallback
 	return result, nil
@@ -172,20 +188,29 @@ func (s *quasarSession) loadCSRFToken() error {
 	return nil
 }
 
-func (s *quasarSession) ensureScenario(deviceID string) (string, error) {
+func (s *quasarSession) ensureScenario(deviceID string) (string, []string, error) {
 	scenarios, err := s.listScenarios()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	name := quasarScenarioName(deviceID)
+	staleScenarioIDs := make([]string, 0)
+	matchingScenarioID := ""
 	for _, scenario := range scenarios {
+		if strings.HasPrefix(scenario.Name, quasarScenarioNamePrefix) && scenario.Name != name {
+			staleScenarioIDs = append(staleScenarioIDs, scenario.ID)
+		}
 		if scenario.Name == name {
-			return scenario.ID, nil
+			matchingScenarioID = scenario.ID
 		}
 	}
+	if matchingScenarioID != "" {
+		return matchingScenarioID, staleScenarioIDs, nil
+	}
 
-	return s.createScenario(deviceID)
+	scenarioID, err := s.createScenario(deviceID)
+	return scenarioID, staleScenarioIDs, err
 }
 
 func (s *quasarSession) listScenarios() ([]quasarScenario, error) {
@@ -264,6 +289,23 @@ func (s *quasarSession) runScenarioAction(scenarioID string) (ScenarioActionResu
 		Status:    payload.Status,
 		RequestID: coalesceNonEmpty(payload.RequestID, scenarioID),
 	}, nil
+}
+
+func (s *quasarSession) deleteScenario(scenarioID string) error {
+	scenarioID = strings.TrimSpace(scenarioID)
+	if scenarioID == "" {
+		return nil
+	}
+
+	return s.doJSON(http.MethodDelete, s.baseURL+"/m/v4/user/scenarios/"+scenarioID, nil, nil)
+}
+
+func (s *quasarSession) deleteScenarios(scenarioIDs []string) {
+	for _, scenarioID := range scenarioIDs {
+		if err := s.deleteScenario(scenarioID); err != nil {
+			continue
+		}
+	}
 }
 
 func (s *quasarSession) doJSON(method, requestURL string, body any, target any) error {
@@ -387,4 +429,34 @@ func coalesceNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+type scenarioDeletionScheduler struct {
+	mu     sync.Mutex
+	timers map[string]*time.Timer
+}
+
+func newScenarioDeletionScheduler() *scenarioDeletionScheduler {
+	return &scenarioDeletionScheduler{
+		timers: make(map[string]*time.Timer),
+	}
+}
+
+func (s *scenarioDeletionScheduler) schedule(xToken, deviceID, scenarioID string, cleanup func()) {
+	key := strings.TrimSpace(xToken) + "|" + strings.TrimSpace(deviceID)
+	if key == "|" || strings.TrimSpace(scenarioID) == "" {
+		return
+	}
+
+	s.mu.Lock()
+	if existing := s.timers[key]; existing != nil {
+		existing.Stop()
+	}
+	s.timers[key] = time.AfterFunc(quasarScenarioTTL, func() {
+		cleanup()
+		s.mu.Lock()
+		delete(s.timers, key)
+		s.mu.Unlock()
+	})
+	s.mu.Unlock()
 }

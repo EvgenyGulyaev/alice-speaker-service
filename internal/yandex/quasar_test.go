@@ -76,3 +76,52 @@ func TestUpdateScenarioTTSFallsBackWithoutVoice(t *testing.T) {
 		t.Fatalf("expected fallback request without voice, got %s", bodies[1])
 	}
 }
+
+func TestEnsureScenarioCollectsStaleCodexScenarios(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/m/user/scenarios" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"status":"ok","scenarios":[{"id":"keep","name":"Codex device-1"},{"id":"stale-a","name":"Codex device-2"},{"id":"foreign","name":"Evening lights"}]}`))
+	}))
+	defer server.Close()
+
+	session := &quasarSession{
+		httpClient: server.Client(),
+		csrfToken:  "csrf",
+		baseURL:    server.URL,
+	}
+
+	scenarioID, staleIDs, err := session.ensureScenario("device-1")
+	if err != nil {
+		t.Fatalf("ensureScenario: %v", err)
+	}
+	if scenarioID != "keep" {
+		t.Fatalf("expected to reuse matching scenario, got %q", scenarioID)
+	}
+	if len(staleIDs) != 1 || staleIDs[0] != "stale-a" {
+		t.Fatalf("expected stale Codex scenarios to be returned, got %#v", staleIDs)
+	}
+}
+
+func TestDeleteScenarioUsesDeleteEndpoint(t *testing.T) {
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method+" "+r.URL.Path)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	session := &quasarSession{
+		httpClient: server.Client(),
+		csrfToken:  "csrf",
+		baseURL:    server.URL,
+	}
+
+	if err := session.deleteScenario("scenario-42"); err != nil {
+		t.Fatalf("deleteScenario: %v", err)
+	}
+	if len(methods) != 1 || methods[0] != "DELETE /m/v4/user/scenarios/scenario-42" {
+		t.Fatalf("unexpected delete calls: %#v", methods)
+	}
+}
